@@ -91,6 +91,54 @@
   #map-mute{position:fixed; top:12px; right:12px; background:rgba(255,255,255,.88); border:none;
     border-radius:12px; width:42px; height:42px; font-size:19px; cursor:pointer;
     box-shadow:0 3px 0 rgba(90,169,230,.5); z-index:20}
+  #map-music{position:fixed; top:60px; right:12px; background:rgba(255,255,255,.88); border:none;
+    border-radius:12px; width:42px; height:42px; font-size:19px; cursor:pointer;
+    box-shadow:0 3px 0 rgba(90,169,230,.5); z-index:20}
+  #map-music.off{opacity:.45}
+  #coin-line{font-size:15px; font-weight:900; color:#b07d00; margin-top:6px}
+  #buyHeartBtn{
+    font-family:inherit; font-size:12px; font-weight:800; color:#fff; margin-top:6px;
+    background:linear-gradient(180deg,#ff9dbd,#ff5d8f); border:none;
+    padding:7px 14px; border-radius:10px; cursor:pointer; box-shadow:0 3px 0 #d13d6f;
+  }
+  #buyHeartBtn:disabled{background:linear-gradient(180deg,#c3ccd6,#9daebc); box-shadow:0 3px 0 #7b8ea2}
+
+  /* 얼음 */
+  #ice-layer{position:absolute; inset:0; pointer-events:none; z-index:3}
+  .ice{
+    position:absolute; width:var(--ts); height:var(--ts); border-radius:14px;
+    background:rgba(205,240,255,.48);
+    border:2px solid rgba(255,255,255,.75);
+    box-shadow:inset 0 0 8px rgba(120,200,255,.6);
+    display:flex; align-items:flex-start; justify-content:flex-end;
+    font-size:13px; padding:2px 4px;
+  }
+  .ice.break{animation:iceBreak .35s ease forwards}
+  @keyframes iceBreak{
+    0%{transform:scale(1); opacity:1}
+    100%{transform:scale(1.4); opacity:0; filter:blur(2px)}
+  }
+
+  /* 아이템 바 */
+  #item-bar{
+    width:100%; display:flex; justify-content:center; align-items:center; gap:8px;
+    padding:8px 6px 4px;
+  }
+  .item-btn{
+    font-family:inherit; font-size:19px; font-weight:900; color:#2b4a6f;
+    background:rgba(255,255,255,.9); border:none; border-radius:13px;
+    padding:7px 13px; cursor:pointer; box-shadow:0 3px 0 rgba(90,169,230,.5);
+    display:flex; flex-direction:column; align-items:center; line-height:1.1;
+    transition:transform .08s;
+  }
+  .item-btn span{font-size:10px; font-weight:800; color:#b07d00}
+  .item-btn:active{transform:translateY(2px)}
+  .item-btn:disabled{opacity:.4; cursor:not-allowed}
+  .item-btn.armed{outline:3px solid var(--hot); animation:dotPulse .6s ease-in-out infinite alternate}
+  #coin-mini{margin-left:6px; font-size:14px; font-weight:900; color:#b07d00;
+    background:rgba(255,255,255,.9); border-radius:12px; padding:9px 13px;
+    box-shadow:0 3px 0 rgba(90,169,230,.5)}
+  #board-wrap.hammer-mode{outline:4px solid var(--hot); outline-offset:3px}
 
   /* ══════ 게임 상단 ══════ */
   #hud{width:100%; display:flex; justify-content:space-between; align-items:stretch; gap:5px; padding:0 6px 6px}
@@ -269,12 +317,15 @@
 <!-- ══════ 맵(홈) 화면 ══════ -->
 <div id="map" class="show">
   <button id="map-mute">🔊</button>
+  <button id="map-music">🎵</button>
   <h1>동물팡팡</h1>
   <div class="tagline">🐶🐱🐰🐻🐸🐥</div>
   <div id="heart-panel">
     <div id="hearts-row">❤️❤️❤️❤️❤️</div>
     <div id="heart-timer"></div>
+    <div id="coin-line">🪙 <span id="coins">0</span></div>
     <button id="shareBtn">📤 친구에게 공유하고 ❤️ +1</button>
+    <button id="buyHeartBtn">❤️ 하트 1개 사기 · 🪙 400</button>
     <div id="share-left"></div>
   </div>
   <div id="record-line">👑 최고 <span id="mapBestStage">1</span>판 · <span id="mapBest">0</span>점</div>
@@ -297,7 +348,14 @@
   </div>
   <div id="board-wrap">
     <div id="board"></div>
+    <div id="ice-layer"></div>
     <div id="fx"></div>
+  </div>
+  <div id="item-bar">
+    <button class="item-btn" id="itemHammer">🔨<span>🪙300</span></button>
+    <button class="item-btn" id="itemShuffle">🔀<span>🪙200</span></button>
+    <button class="item-btn" id="itemPlus">➕<span>🪙500</span></button>
+    <div id="coin-mini">🪙 0</div>
   </div>
 </div>
 
@@ -306,7 +364,7 @@
     <h2>🎉 <span id="clearStage">1</span>판 클리어!</h2>
     <div class="stars" id="starsEl">⭐⭐⭐</div>
     <div class="final" id="clearScore">0</div>
-    <div class="sub-line">남은 이동 보너스 +<span id="moveBonus">0</span></div>
+    <div class="sub-line">남은 이동 보너스 +<span id="moveBonus">0</span> · 🪙 +<span id="coinGain">0</span></div>
     <button class="go gray" id="clearHomeBtn">🗺️ 맵</button>
     <button class="go green" id="nextBtn">다음 판 ▶</button>
     <div class="heart-cost" id="clearHeartNote">🎁 클리어 보상: 다음 판은 하트 소모 없음!</div>
@@ -360,6 +418,19 @@ let isTimeAttack = false, timeLeft = 0, stageTimer = null, timeUp = false;
 let replayMode = false;   // 깬 판 다시하기 모드
 function isTimeStage(s){ return s % TIME_ATTACK_EVERY === 0; }
 
+/* 판 목표 종류: score(점수) / collect(동물 모으기) / ice(얼음 깨기) */
+let goalType = 'score', goalTarget = 0, goalProgress = 0, targetAnimal = '🐶';
+let iceEls = {};          // {"r_c": element}
+let coins = 0;
+let hammerMode = false;
+let musicOn = true;
+function goalTypeFor(s){
+  if(isTimeStage(s)) return 'score';        // 타임어택은 점수전
+  if(s === 1) return 'score';               // 첫 판은 기본형
+  const m = s % 3;
+  return m === 2 ? 'collect' : m === 0 ? 'ice' : 'score';
+}
+
 /* 하트 & 진행 상태 */
 let hearts = MAX_HEARTS, lastRegen = Date.now();
 let runStage = 1, runScore = 0;     // 현재 도전 중인 판 / 누적 점수
@@ -381,6 +452,8 @@ function loadSave(){ try{
   stageStars = JSON.parse(localStorage.getItem('ap_stars')||'{}');
   shareDate = localStorage.getItem('ap_shareDate')||'';
   shareCount = +localStorage.getItem('ap_shareCount')||0;
+  coins = +localStorage.getItem('ap_coins')||0;
+  musicOn = localStorage.getItem('ap_music') !== '0';
 }catch(e){} }
 function save(){ try{
   localStorage.setItem('ap_best', best);
@@ -392,7 +465,36 @@ function save(){ try{
   localStorage.setItem('ap_stars', JSON.stringify(stageStars));
   localStorage.setItem('ap_shareDate', shareDate);
   localStorage.setItem('ap_shareCount', shareCount);
+  localStorage.setItem('ap_coins', coins);
+  localStorage.setItem('ap_music', musicOn ? '1' : '0');
 }catch(e){} }
+
+/* ══════════ 배경음악 (WebAudio 시퀀서 — 파일 없음) ══════════ */
+const BGM_STEP_MS = 214;   // 약 140bpm 8분음표
+const BGM_MELODY = [
+  523,659,784,659, 880,784,659,523, 587,659,587,523, 440,523,659,784,
+  523,659,784,880, 1047,880,784,659, 587,784,659,587, 523,0,392,0
+];
+const BGM_BASS = [261,220,174,196, 261,220,174,196];
+let bgmTimer = null, bgmStep = 0;
+function bgmTick(){
+  if(muted || !musicOn) { bgmStep=(bgmStep+1)%32; return; }
+  const m = BGM_MELODY[bgmStep];
+  if(m) tone(m, .16, 'triangle', .035);
+  if(bgmStep % 4 === 0){
+    tone(BGM_BASS[(bgmStep/4)|0], .3, 'sine', .05);
+  }
+  bgmStep = (bgmStep+1) % 32;
+}
+function startMusic(){
+  if(bgmTimer || !ac()) return;
+  bgmTimer = setInterval(bgmTick, BGM_STEP_MS);
+}
+function toggleMusic(){
+  musicOn = !musicOn;
+  $('map-music').classList.toggle('off', !musicOn);
+  save();
+}
 
 /* ══════════ 친구 공유 → 하트 보상 ══════════ */
 const SHARES_PER_DAY = 3;
@@ -479,6 +581,7 @@ function updateHeartUI(){
   const left = sharesLeft();
   $('share-left').textContent = '오늘 공유 보상 ' + left + '회 남음';
   $('shareBtn').disabled = left <= 0 || hearts >= MAX_HEARTS;
+  updateCoinUI();
 }
 setInterval(updateHeartUI, 1000);
 
@@ -556,7 +659,7 @@ function fitSize(){
   const w = Math.min(window.innerWidth*0.96, 430);
   const h = window.innerHeight;
   let ts = Math.floor((w - 12 - PAD*2 - GAP*(N-1)) / N);
-  ts = Math.min(ts, Math.floor((h - 135 - PAD*2 - GAP*(N-1)) / N));
+  ts = Math.min(ts, Math.floor((h - 190 - PAD*2 - GAP*(N-1)) / N));
   TS = Math.max(34, ts);
   document.documentElement.style.setProperty('--ts', TS+'px');
   const size = N*TS + (N-1)*GAP + PAD*2;
@@ -605,11 +708,43 @@ function posOf(t){
   return null;
 }
 
+/* ══════════ 얼음 (얼음 깨기 판) ══════════ */
+const iceLayer = $('ice-layer');
+function setupIce(count){
+  iceLayer.innerHTML = ''; iceEls = {};
+  const spots = [];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++) spots.push([r,c]);
+  spots.sort(()=>Math.random()-.5);
+  for(let i=0;i<count;i++){
+    const [r,c] = spots[i];
+    const d = document.createElement('div');
+    d.className = 'ice'; d.textContent = '❄';
+    d.style.transform = `translate(${px(c)}px, ${px(r)}px)`;
+    iceLayer.appendChild(d);
+    iceEls[r+'_'+c] = d;
+  }
+}
+function repositionIce(){
+  Object.keys(iceEls).forEach(key=>{
+    const [r,c] = key.split('_').map(Number);
+    iceEls[key].style.transform = `translate(${px(c)}px, ${px(r)}px)`;
+  });
+}
+function breakIceAt(key){
+  const el = iceEls[key];
+  if(!el) return false;
+  el.classList.add('break');
+  setTimeout(()=>el.remove(), 350);
+  delete iceEls[key];
+  return true;
+}
+
 /* ══════════ 입력 ══════════ */
 let sel = null, downInfo = null;
 function onDown(e, t){
   if(busy || !playing) return;
   e.preventDefault(); clearHint();
+  if(hammerMode){ doHammer(t); return; }
   downInfo = {t, x:e.clientX, y:e.clientY};
   window.addEventListener('pointermove', onMove, {passive:false});
   window.addEventListener('pointerup', onUp);
@@ -815,7 +950,6 @@ async function clearCells(hit, chain, perTile){
   const gained = hit.size * perTile * chain * Math.max(1, combo);
   score += gained;
   if(score > best){ best = score; save(); }
-  updateHud();
   const first = [...hit][0].split('_').map(Number);
   floatScore(first[0], first[1], '+'+gained);
   snd.pop(chain);
@@ -823,11 +957,18 @@ async function clearCells(hit, chain, perTile){
     const [r,c] = key.split('_').map(Number);
     const t = grid[r][c];
     if(!t) return;
+    // 목표 반영: 동물 모으기 / 얼음 깨기
+    if(goalType==='collect' && t.type===targetAnimal) goalProgress++;
+    if(breakIceAt(key)){
+      if(goalType==='ice') goalProgress++;
+      tone(1500,.08,'sine',.09);
+    }
     t.el.classList.add('pop');
     sparks(r,c);
     setTimeout(()=>t.el.remove(), 300);
     grid[r][c] = null;
   });
+  updateHud();
   await sleep(280);
 }
 
@@ -892,9 +1033,67 @@ async function resolveBoard(fromSwap, swapPos, swapPos2){
 }
 
 /* ══════════ 판정 ══════════ */
+/* ══════════ 아이템 (코인 사용) ══════════ */
+async function doHammer(t){
+  hammerMode = false;
+  wrapEl.classList.remove('hammer-mode');
+  $('itemHammer').classList.remove('armed');
+  coins -= 300; save(); updateCoinUI();
+  busy = true;
+  const p = posOf(t);
+  const hit = new Set([p[0]+'_'+p[1]]);
+  if(t.special==='bomb') addBlast(hit, p[0], p[1]);   // 폭탄을 부수면 그대로 폭발
+  snd.bomb(1);
+  await clearCells(hit, 1, 10);
+  await dropAndRefill();
+  await resolveBoard(false);
+  await afterTurn();
+}
+function armHammer(){
+  if(busy || !playing || coins < 300) return;
+  hammerMode = !hammerMode;
+  wrapEl.classList.toggle('hammer-mode', hammerMode);
+  $('itemHammer').classList.toggle('armed', hammerMode);
+  if(hammerMode) toast('🔨 부술 블록을 탭하세요!');
+}
+async function useShuffle(){
+  if(busy || !playing || coins < 200) return;
+  coins -= 200; save(); updateCoinUI();
+  busy = true;
+  banner('섞는 중!'); snd.special();
+  await sleep(400);
+  boardEl.querySelectorAll('.tile').forEach(el=>el.remove());
+  buildBoard();
+  busy = false; scheduleHint();
+}
+function usePlus(){
+  if(busy || !playing || coins < 500) return;
+  coins -= 500; save(); updateCoinUI();
+  if(isTimeAttack){
+    timeLeft = Math.min(TIME_ATTACK_SEC, timeLeft + 10);
+    toast('⏱️ +10초!');
+  } else {
+    moves += 5;
+    toast('➕ 이동 +5!');
+  }
+  snd.bonus(); updateHud();
+}
+function buyHeart(){
+  regenHearts();
+  if(coins < 400 || hearts >= MAX_HEARTS) return;
+  coins -= 400;
+  hearts++;
+  if(hearts >= MAX_HEARTS) lastRegen = Date.now();
+  save(); updateHeartUI(); updateCoinUI();
+  snd.bonus(); toast('❤️ 하트 +1!');
+}
+
+function goalMet(){
+  if(goalType === 'score') return (score - levelStart) >= target;
+  return goalProgress >= goalTarget;
+}
 async function afterTurn(){
-  const levelScore = score - levelStart;
-  if(levelScore >= target){ await stageClear(); return; }
+  if(goalMet()){ await stageClear(); return; }
   if(isTimeAttack){
     if(timeUp){ stageFail(); return; }
   } else {
@@ -964,19 +1163,28 @@ async function stageClear(){
       await sleep(90);
     }
   }
-  const ratio = (score - levelStart) / target;
-  const earned = ratio >= 2 ? 3 : ratio >= 1.4 ? 2 : 1;
+  let earned;
+  if(goalType === 'score'){
+    const ratio = (score - levelStart) / target;
+    earned = ratio >= 2 ? 3 : ratio >= 1.4 ? 2 : 1;
+  } else {
+    earned = isTimeAttack ? 3 : (moves >= 8 ? 3 : moves >= 4 ? 2 : 1);
+  }
   stageStars[stage] = Math.max(stageStars[stage]||0, earned);
+  const coinGain = earned * 40 + stage * 10;
+  coins += coinGain;
   if(!replayMode){
     runStage = stage + 1;
     runScore = score;
     if(runStage > bestStage) bestStage = runStage;
   }
   save();
+  updateCoinUI();
   $('starsEl').textContent = '⭐'.repeat(earned) + '☆'.repeat(3-earned);
   $('clearStage').textContent = stage;
   $('clearScore').textContent = score;
   $('moveBonus').textContent = bonus;
+  $('coinGain').textContent = coinGain;
   $('nextBtn').style.display = replayMode ? 'none' : '';
   $('clearHeartNote').style.display = replayMode ? 'none' : '';
   $('clearOverlay').classList.add('show');
@@ -1046,10 +1254,22 @@ function startStage(s, replay){
   levelStart = score;
   target = targetFor(stage);
   isTimeAttack = isTimeStage(stage);
+  goalType = goalTypeFor(stage);
+  goalProgress = 0;
+  if(goalType === 'collect'){
+    targetAnimal = TYPES[stage % TYPES.length];
+    goalTarget = Math.min(20 + stage * 2, 60);
+  } else if(goalType === 'ice'){
+    goalTarget = Math.min(8 + Math.floor(stage/2), 16);
+  }
   moves = MOVES_PER_STAGE;
   timeLeft = TIME_ATTACK_SEC;
   combo = 0;
+  hammerMode = false;
+  wrapEl.classList.remove('hammer-mode');
   $('movesLabel').textContent = isTimeAttack ? '⏰ TIME' : 'MOVES';
+  $('itemPlus').firstChild.textContent = '';
+  $('itemPlus').innerHTML = (isTimeAttack ? '⏱️' : '➕') + '<span>🪙500</span>';
   $('clearOverlay').classList.remove('show');
   $('failOverlay').classList.remove('show');
   $('noHeartOverlay').classList.remove('show');
@@ -1057,11 +1277,18 @@ function startStage(s, replay){
   $('app').classList.add('show');
   fitSize();
   boardEl.querySelectorAll('.tile').forEach(el=>el.remove());
-  buildBoard(); updateHud(); updateHeartUI();
+  buildBoard();
+  setupIce(goalType === 'ice' ? goalTarget : 0);
+  updateHud(); updateHeartUI(); updateCoinUI();
   playing = true; busy = false;
+  startMusic();
   if(isTimeAttack){
     megaBanner('⏰ 타임어택!');
     startStageTimer();
+  } else if(goalType === 'collect'){
+    banner(targetAnimal + ' ' + goalTarget + '마리 모으기!');
+  } else if(goalType === 'ice'){
+    banner('🧊 얼음을 모두 깨세요!');
   } else {
     banner(replayMode ? stage + '판 다시 도전!' : stage + '판 시작!');
   }
@@ -1071,6 +1298,9 @@ function startStage(s, replay){
 function goHome(){
   playing = false; busy = true;
   clearInterval(stageTimer);
+  hammerMode = false;
+  wrapEl.classList.remove('hammer-mode');
+  $('itemHammer').classList.remove('armed');
   clearHint();
   $('app').classList.remove('show');
   $('clearOverlay').classList.remove('show');
@@ -1214,10 +1444,27 @@ function updateHud(){
     $('moves').textContent = moves;
     $('moves').classList.toggle('low', moves <= 5);
   }
-  $('target').textContent = target;
-  const pct = Math.min(100, (score - levelStart) / target * 100);
+  let pct;
+  if(goalType === 'collect'){
+    $('goal-label').innerHTML = targetAnimal + ' <span id="target">' + Math.min(goalProgress,goalTarget) + '/' + goalTarget + '</span>';
+    pct = Math.min(100, goalProgress / goalTarget * 100);
+  } else if(goalType === 'ice'){
+    $('goal-label').innerHTML = '🧊 <span id="target">' + Math.min(goalProgress,goalTarget) + '/' + goalTarget + '</span>';
+    pct = Math.min(100, goalProgress / goalTarget * 100);
+  } else {
+    $('goal-label').innerHTML = '목표 <span id="target">' + target + '</span>';
+    pct = Math.min(100, (score - levelStart) / target * 100);
+  }
   $('bar').style.width = pct + '%';
   $('bar').classList.toggle('done', pct >= 100);
+}
+function updateCoinUI(){
+  $('coins').textContent = coins;
+  $('coin-mini').textContent = '🪙 ' + coins;
+  $('itemHammer').disabled = coins < 300 || !playing;
+  $('itemShuffle').disabled = coins < 200 || !playing;
+  $('itemPlus').disabled = coins < 500 || !playing;
+  $('buyHeartBtn').disabled = coins < 400 || hearts >= MAX_HEARTS;
 }
 
 /* ══════════ 버튼 ══════════ */
@@ -1230,10 +1477,16 @@ $('homeBtn').addEventListener('click', goHome);
 $('clearHomeBtn').addEventListener('click', goHome);
 $('failHomeBtn').addEventListener('click', goHome);
 $('noHeartOkBtn').addEventListener('click', ()=>{ $('noHeartOverlay').classList.remove('show'); });
+$('map-music').addEventListener('click', toggleMusic);
+$('itemHammer').addEventListener('click', armHammer);
+$('itemShuffle').addEventListener('click', useShuffle);
+$('itemPlus').addEventListener('click', usePlus);
+$('buyHeartBtn').addEventListener('click', buyHeart);
 window.addEventListener('resize', ()=>{
   if(!$('app').classList.contains('show')) return;
   fitSize();
   for(let r=0;r<N;r++) for(let c=0;c<N;c++) if(grid[r]?.[c]) place(grid[r][c], r, c);
+  repositionIce();
 });
 
 /* ══════════ 시작 ══════════ */
@@ -1241,6 +1494,8 @@ loadSave();
 regenHearts();
 renderMap();
 updateHeartUI();
+updateCoinUI();
+$('map-music').classList.toggle('off', !musicOn);
 })();
 </script>
 </body>
