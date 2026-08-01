@@ -68,7 +68,9 @@
   }
   .stage-dot .st{font-size:9px; letter-spacing:1px; line-height:1; margin-top:1px; color:var(--gold)}
   .stage-dot.cleared{background:linear-gradient(180deg,#fff6da,#ffe9a8); color:#b07d00;
-    box-shadow:0 3px 0 rgba(255,183,3,.5)}
+    box-shadow:0 3px 0 rgba(255,183,3,.5); cursor:pointer; transition:transform .1s}
+  .stage-dot.cleared:active{transform:scale(.92)}
+  .stage-dot.current{cursor:pointer}
   .stage-dot.current{
     background:linear-gradient(180deg,#ff9dbd,#ff5d8f); color:#fff;
     box-shadow:0 3px 0 #d13d6f, 0 0 0 4px rgba(255,93,143,.25);
@@ -307,7 +309,7 @@
     <div class="sub-line">남은 이동 보너스 +<span id="moveBonus">0</span></div>
     <button class="go gray" id="clearHomeBtn">🗺️ 맵</button>
     <button class="go green" id="nextBtn">다음 판 ▶</button>
-    <div class="heart-cost">🎁 클리어 보상: 다음 판은 하트 소모 없음!</div>
+    <div class="heart-cost" id="clearHeartNote">🎁 클리어 보상: 다음 판은 하트 소모 없음!</div>
   </div>
 </div>
 
@@ -355,6 +357,7 @@ let hintId = null, muted = false;
 const TIME_ATTACK_EVERY = 4;
 const TIME_ATTACK_SEC = 60;
 let isTimeAttack = false, timeLeft = 0, stageTimer = null, timeUp = false;
+let replayMode = false;   // 깬 판 다시하기 모드
 function isTimeStage(s){ return s % TIME_ATTACK_EVERY === 0; }
 
 /* 하트 & 진행 상태 */
@@ -964,14 +967,18 @@ async function stageClear(){
   const ratio = (score - levelStart) / target;
   const earned = ratio >= 2 ? 3 : ratio >= 1.4 ? 2 : 1;
   stageStars[stage] = Math.max(stageStars[stage]||0, earned);
-  runStage = stage + 1;
-  runScore = score;
-  if(runStage > bestStage) bestStage = runStage;
+  if(!replayMode){
+    runStage = stage + 1;
+    runScore = score;
+    if(runStage > bestStage) bestStage = runStage;
+  }
   save();
   $('starsEl').textContent = '⭐'.repeat(earned) + '☆'.repeat(3-earned);
   $('clearStage').textContent = stage;
   $('clearScore').textContent = score;
   $('moveBonus').textContent = bonus;
+  $('nextBtn').style.display = replayMode ? 'none' : '';
+  $('clearHeartNote').style.display = replayMode ? 'none' : '';
   $('clearOverlay').classList.add('show');
 }
 
@@ -979,8 +986,7 @@ function stageFail(){
   playing = false;
   clearInterval(stageTimer);
   snd.lose();
-  runScore = levelStart;
-  save();
+  if(!replayMode){ runScore = levelStart; save(); }
   $('failReason').innerHTML = (isTimeAttack ? '⏰ 시간이 다 됐어요.' : '이동 횟수를 다 썼어요.')
     + '<br>목표까지 <b>' + (target - (score - levelStart)) + '</b>점 부족!';
   $('failBest').textContent = best;
@@ -999,7 +1005,17 @@ function startPlay(){
     updateHeartUI(); return;
   }
   ac();
-  startStage(runStage);
+  startStage(runStage, false);
+}
+function replayStart(s){
+  // 이미 깬 판 다시하기 — 별 등급 갱신용, 진행 상황에는 영향 없음
+  regenHearts();
+  if(hearts <= 0){
+    $('noHeartOverlay').classList.add('show');
+    updateHeartUI(); return;
+  }
+  ac();
+  startStage(s, true);
 }
 function attemptRetry(){
   // 실패 후 다시 도전할 때만 하트 1개 소모
@@ -1009,7 +1025,7 @@ function attemptRetry(){
   hearts--;
   save(); updateHeartUI();
   ac();
-  startStage(runStage);
+  startStage(stage, replayMode);
 }
 function showNoHearts(){
   // 하트 소진 → 1판으로 리셋 (애니팡식 런 시스템)
@@ -1023,9 +1039,10 @@ function showNoHearts(){
   updateHeartUI();
 }
 
-function startStage(s){
+function startStage(s, replay){
   stage = s;
-  score = (s === 1) ? 0 : runScore;
+  replayMode = !!replay;
+  score = replayMode ? 0 : ((s === 1) ? 0 : runScore);
   levelStart = score;
   target = targetFor(stage);
   isTimeAttack = isTimeStage(stage);
@@ -1046,7 +1063,7 @@ function startStage(s){
     megaBanner('⏰ 타임어택!');
     startStageTimer();
   } else {
-    banner(stage + '판 시작!');
+    banner(replayMode ? stage + '판 다시 도전!' : stage + '판 시작!');
   }
   scheduleHint();
 }
@@ -1078,12 +1095,12 @@ function renderMap(){
     if(s === runStage){
       d.classList.add('current');
       d.innerHTML = clock ? clock + s : s + '판';
-    } else if(st){
+      d.addEventListener('click', startPlay);
+    } else if(st || s < runStage){
       d.classList.add('cleared');
-      d.innerHTML = clock + s + '<div class="st">' + '⭐'.repeat(st) + '</div>';
-    } else if(s < runStage){
-      d.classList.add('cleared');
-      d.textContent = clock + s;
+      d.innerHTML = clock + s + (st ? '<div class="st">' + '⭐'.repeat(st) + '</div>' : '');
+      d.title = '다시 도전해서 별 등급 올리기';
+      d.addEventListener('click', ()=>replayStart(s));
     } else {
       d.classList.add('locked');
       d.innerHTML = clock || '🔒';
