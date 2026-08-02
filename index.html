@@ -454,6 +454,8 @@ function loadSave(){ try{
   shareCount = +localStorage.getItem('ap_shareCount')||0;
   coins = +localStorage.getItem('ap_coins')||0;
   musicOn = localStorage.getItem('ap_music') !== '0';
+  // 과거 '하트 소진 리셋'으로 1판에 갇힌 진행 복구: 최고 도달 판으로 복원
+  if(runStage < bestStage) runStage = bestStage;
 }catch(e){} }
 function save(){ try{
   localStorage.setItem('ap_best', best);
@@ -955,14 +957,14 @@ async function clearCells(hit, chain, perTile){
   snd.pop(chain);
   hit.forEach(key=>{
     const [r,c] = key.split('_').map(Number);
-    const t = grid[r][c];
-    if(!t) return;
-    // 목표 반영: 동물 모으기 / 얼음 깨기
-    if(goalType==='collect' && t.type===targetAnimal) goalProgress++;
+    // 얼음은 칸 기준 — 그 칸이 터짐 범위에 들면 블록 유무와 무관하게 깨짐
     if(breakIceAt(key)){
       if(goalType==='ice') goalProgress++;
       tone(1500,.08,'sine',.09);
     }
+    const t = grid[r][c];
+    if(!t) return;
+    if(goalType==='collect' && t.type===targetAnimal) goalProgress++;
     t.el.classList.add('pop');
     sparks(r,c);
     setTimeout(()=>t.el.remove(), 300);
@@ -1242,11 +1244,9 @@ function attemptRetry(){
   startStage(stage, replayMode);
 }
 function showNoHearts(){
-  // 하트 소진 → 1판으로 리셋 (애니팡식 런 시스템)
+  // 하트 소진 — 진행은 유지, 충전을 기다리거나 공유/코인으로 해결
   snd.heartBreak();
-  runStage = 1; runScore = 0;
-  save();
-  $('noHeartMsg').innerHTML = '하트를 모두 사용해서 <b>1판부터 다시</b> 시작해요.<br>하트는 <b>5분마다 1개씩</b> 충전됩니다.';
+  $('noHeartMsg').innerHTML = '하트가 다 떨어졌어요!<br>진행(<b>' + runStage + '판</b>)은 그대로 저장되어 있으니,<br>하트가 충전되면 이어서 도전하세요. (<b>5분마다 1개</b>)';
   $('clearOverlay').classList.remove('show');
   $('failOverlay').classList.remove('show');
   goHome();
@@ -1296,6 +1296,7 @@ function startStage(s, replay){
     banner(targetAnimal + ' ' + goalTarget + '마리 모으기!');
   } else if(goalType === 'ice'){
     banner('🧊 얼음을 모두 깨세요!');
+    setTimeout(()=>toast('얼음 칸 위에서 매치를 터뜨리면 깨져요!'), 1000);
   } else {
     banner(replayMode ? stage + '판 다시 도전!' : stage + '판 시작!');
   }
