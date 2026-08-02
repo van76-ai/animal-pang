@@ -135,6 +135,8 @@
   .item-btn:active{transform:translateY(2px)}
   .item-btn:disabled{opacity:.4; cursor:not-allowed}
   .item-btn.armed{outline:3px solid var(--hot); animation:dotPulse .6s ease-in-out infinite alternate}
+  .item-btn.snd{font-size:15px; padding:8px 10px}
+  .item-btn.snd.off{opacity:.4}
   #coin-mini{margin-left:6px; font-size:14px; font-weight:900; color:#b07d00;
     background:rgba(255,255,255,.9); border-radius:12px; padding:9px 13px;
     box-shadow:0 3px 0 rgba(90,169,230,.5)}
@@ -356,6 +358,8 @@
     <button class="item-btn" id="itemShuffle">🔀<span>🪙200</span></button>
     <button class="item-btn" id="itemPlus">➕<span>🪙500</span></button>
     <div id="coin-mini">🪙 0</div>
+    <button class="item-btn snd" id="gameMute">🔊</button>
+    <button class="item-btn snd" id="gameMusic">🎵</button>
   </div>
 </div>
 
@@ -482,9 +486,9 @@ let bgmTimer = null, bgmStep = 0;
 function bgmTick(){
   if(muted || !musicOn) { bgmStep=(bgmStep+1)%32; return; }
   const m = BGM_MELODY[bgmStep];
-  if(m) tone(m, .16, 'triangle', .035);
+  if(m) tone(m, .16, 'triangle', .015);
   if(bgmStep % 4 === 0){
-    tone(BGM_BASS[(bgmStep/4)|0], .3, 'sine', .05);
+    tone(BGM_BASS[(bgmStep/4)|0], .3, 'sine', .022);
   }
   bgmStep = (bgmStep+1) % 32;
 }
@@ -495,6 +499,7 @@ function startMusic(){
 function toggleMusic(){
   musicOn = !musicOn;
   $('map-music').classList.toggle('off', !musicOn);
+  $('gameMusic').classList.toggle('off', !musicOn);
   save();
 }
 
@@ -653,6 +658,8 @@ const snd = {
 function toggleMute(){
   muted = !muted;
   $('map-mute').textContent = muted ? '🔇' : '🔊';
+  $('gameMute').textContent = muted ? '🔇' : '🔊';
+  $('gameMute').classList.toggle('off', muted);
 }
 $('map-mute').addEventListener('click', toggleMute);
 
@@ -1487,6 +1494,8 @@ $('failHomeBtn').addEventListener('click', goHome);
 $('noHeartOkBtn').addEventListener('click', ()=>{ $('noHeartOverlay').classList.remove('show'); });
 $('map-music').addEventListener('click', toggleMusic);
 $('itemHammer').addEventListener('click', armHammer);
+$('gameMute').addEventListener('click', toggleMute);
+$('gameMusic').addEventListener('click', toggleMusic);
 $('itemShuffle').addEventListener('click', useShuffle);
 $('itemPlus').addEventListener('click', usePlus);
 $('buyHeartBtn').addEventListener('click', buyHeart);
@@ -1504,6 +1513,7 @@ renderMap();
 updateHeartUI();
 updateCoinUI();
 $('map-music').classList.toggle('off', !musicOn);
+$('gameMusic').classList.toggle('off', !musicOn);
 })();
 </script>
 </body>
