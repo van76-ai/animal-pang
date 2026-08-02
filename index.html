@@ -385,7 +385,7 @@
 <div class="overlay" id="noHeartOverlay">
   <div class="card">
     <h2>💔 하트가 없어요!</h2>
-    <p>하트를 모두 사용해서 <b>1판부터 다시</b> 시작해요.<br>
+    <p id="noHeartMsg">하트를 모두 사용해서 <b>1판부터 다시</b> 시작해요.<br>
        하트는 <b>5분마다 1개씩</b> 충전됩니다.</p>
     <div class="sub-line">다음 하트까지 <b id="noHeartTimer">5:00</b></div>
     <button class="go green" id="shareBtn2">📤 공유하고 ❤️ 받기</button>
@@ -1209,9 +1209,15 @@ function startPlay(){
   // 판 시작·다음 판 진행은 하트 소모 없음 (하트 1개 이상 보유 시 플레이 가능)
   regenHearts();
   if(hearts <= 0){
+    $('noHeartMsg').innerHTML = '하트가 충전되면 이어서 도전할 수 있어요.<br>하트는 <b>5분마다 1개씩</b> 충전됩니다.';
     $('noHeartOverlay').classList.add('show');
     updateHeartUI(); return;
   }
+  ac();
+  startStage(runStage, false);
+}
+function startNext(){
+  // 🎁 클리어 보상: 다음 판은 하트가 없어도 그대로 진행 (연승 중엔 무료)
   ac();
   startStage(runStage, false);
 }
@@ -1240,6 +1246,7 @@ function showNoHearts(){
   snd.heartBreak();
   runStage = 1; runScore = 0;
   save();
+  $('noHeartMsg').innerHTML = '하트를 모두 사용해서 <b>1판부터 다시</b> 시작해요.<br>하트는 <b>5분마다 1개씩</b> 충전됩니다.';
   $('clearOverlay').classList.remove('show');
   $('failOverlay').classList.remove('show');
   goHome();
@@ -1258,9 +1265,9 @@ function startStage(s, replay){
   goalProgress = 0;
   if(goalType === 'collect'){
     targetAnimal = TYPES[stage % TYPES.length];
-    goalTarget = Math.min(20 + stage * 2, 60);
+    goalTarget = Math.min(12 + Math.floor(stage/2), 30);
   } else if(goalType === 'ice'){
-    goalTarget = Math.min(8 + Math.floor(stage/2), 16);
+    goalTarget = Math.min(8 + Math.floor(stage/3), 14);
   }
   moves = MOVES_PER_STAGE;
   timeLeft = TIME_ATTACK_SEC;
@@ -1469,7 +1476,7 @@ function updateCoinUI(){
 
 /* ══════════ 버튼 ══════════ */
 $('playBtn').addEventListener('click', startPlay);
-$('nextBtn').addEventListener('click', startPlay);
+$('nextBtn').addEventListener('click', startNext);
 $('retryBtn').addEventListener('click', attemptRetry);
 $('shareBtn').addEventListener('click', shareForHeart);
 $('shareBtn2').addEventListener('click', shareForHeart);
