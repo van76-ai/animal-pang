@@ -200,6 +200,22 @@
   }
   @keyframes bombPulse{from{box-shadow:0 0 4px 1px rgba(255,77,77,.5), inset 0 -3px 0 rgba(200,60,60,.3)}
     to{box-shadow:0 0 14px 4px rgba(255,77,77,.85), inset 0 -3px 0 rgba(200,60,60,.3)}}
+  .tile.sp-cross{
+    background:radial-gradient(120% 120% at 30% 20%, #fff9d6 0%, #ffe98a 70%);
+    animation:crossPulse .7s ease-in-out infinite alternate;
+  }
+  @keyframes crossPulse{from{box-shadow:0 0 4px 1px rgba(255,210,60,.5)}
+    to{box-shadow:0 0 16px 5px rgba(255,210,60,.9)}}
+  .line-flash{
+    position:absolute; background:linear-gradient(90deg,transparent,rgba(255,235,130,.95),transparent);
+    pointer-events:none; border-radius:6px;
+    animation:lineFade .45s ease-out forwards;
+  }
+  .line-flash.vert{background:linear-gradient(180deg,transparent,rgba(255,235,130,.95),transparent)}
+  @keyframes lineFade{
+    0%{opacity:1; filter:brightness(1.6)}
+    100%{opacity:0; filter:brightness(1)}
+  }
   .tile.sp-rainbow{
     background:conic-gradient(#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#e3baff,#ffb3ba);
     animation:spin 3.2s linear infinite;
@@ -641,6 +657,7 @@ const snd = {
     }
   },
   rainbow(){ [523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,.13,'triangle',.13,i*.05)); },
+  cross(){ noise(.15,.18); tone(1400,.18,'sawtooth',.1,0,300); tone(700,.2,'square',.08,.05,180); },
   megaCombo(){
     [392,523,659,784].forEach((f,i)=>{ tone(f,.15,'sawtooth',.1,i*.05); tone(f*2,.15,'triangle',.08,i*.05); });
     noise(.4,.15,.2);
@@ -686,6 +703,7 @@ function makeTile(type, special){
   el.className = 'tile born';
   el.innerHTML = '<span>'+type+'</span>';
   if(special==='bomb') el.classList.add('sp-bomb');
+  if(special==='cross') el.classList.add('sp-cross');
   if(special==='rainbow') el.classList.add('sp-rainbow');
   boardEl.appendChild(el);
   const t = {type, special:special||null, el};
@@ -814,11 +832,18 @@ async function trySwap(r1,c1,r2,c2){
     await resolveBoard(false);
     await afterTurn(); return;
   }
-  if(a.special==='bomb' || b.special==='bomb'){
+  // ⚡ 또는 💣이 하나라도 포함된 스왑 → 즉시 발동
+  if(a.special==='bomb' || b.special==='bomb' || a.special==='cross' || b.special==='cross'){
     useMove();
+    if(a.special==='cross' && b.special==='cross'){ megaBanner('⚡ 더블 번개!'); flash(); }
+    else if((a.special==='cross' && b.special==='bomb') || (a.special==='bomb' && b.special==='cross')){ megaBanner('⚡💥 번개 폭발!'); flash(); }
     const hit = new Set();
-    if(a.special==='bomb'){ const p=posOf(a); addBlast(hit,p[0],p[1]); }
-    if(b.special==='bomb'){ const p=posOf(b); addBlast(hit,p[0],p[1]); }
+    [a, b].forEach(t=>{
+      if(!t.special) return;
+      const p = posOf(t);
+      if(t.special==='bomb') addBlast(hit, p[0], p[1]);
+      if(t.special==='cross') addCrossBlast(hit, p[0], p[1]);
+    });
     await clearCells(hit, 1, 15);
     await dropAndRefill();
     await resolveBoard(false);
@@ -865,6 +890,7 @@ function startStageTimer(){
 /* ══════════ 매치 탐색 ══════════ */
 function findRuns(){
   const hit = new Set(), spawns = [];
+  const runs = [];
   const scan = (horiz)=>{
     for(let i=0;i<N;i++){
       let j=0;
@@ -882,15 +908,37 @@ function findRuns(){
             const r = horiz? i : j+k, c = horiz? j+k : i;
             hit.add(r+'_'+c); cellsInRun.push([r,c]);
           }
-          if(len===4) spawns.push({cells:cellsInRun, kind:'bomb'});
-          if(len>=5) spawns.push({cells:cellsInRun, kind:'rainbow'});
+          runs.push({cells:cellsInRun, horiz, len, type:t.type, used:false});
         }
         j += len;
       }
     }
   };
   scan(true); scan(false);
-  // 2x2 네모 매치 → 폭탄
+  // ① 5개 이상 일자 → 🌟 (최우선)
+  runs.forEach(run=>{
+    if(!run.used && run.len>=5){ run.used=true; spawns.push({cells:run.cells, kind:'rainbow'}); }
+  });
+  // ② 가로줄+세로줄 교차 (십자·T자·ㄱ자·ㄴ자) → ⚡ 번개
+  const hs = runs.filter(r=>r.horiz && !r.used);
+  const vs = runs.filter(r=>!r.horiz && !r.used);
+  hs.forEach(h=>{
+    if(h.used) return;
+    for(const v of vs){
+      if(v.used || v.type!==h.type) continue;
+      const shared = h.cells.find(([r,c])=>v.cells.some(([r2,c2])=>r2===r&&c2===c));
+      if(shared){
+        h.used = v.used = true;
+        spawns.push({cells:h.cells.concat(v.cells), kind:'cross', at:shared});
+        break;
+      }
+    }
+  });
+  // ③ 남은 4개 일자 → 💣
+  runs.forEach(run=>{
+    if(!run.used && run.len===4){ run.used=true; spawns.push({cells:run.cells, kind:'bomb'}); }
+  });
+  // ④ 2x2 네모 → 💣
   for(let r=0;r<N-1;r++) for(let c=0;c<N-1;c++){
     const t = grid[r][c];
     if(!t || t.special) continue;
@@ -907,24 +955,34 @@ function findRuns(){
   return {hit, spawns};
 }
 
-function addBlast(hit, r0, c0, radius){
-  radius = radius || 1;
-  const queue = [[r0,c0,radius]];
+function detonate(hit, r0, c0, kind, radius){
+  const queue = [[r0, c0, kind, radius||1]];
   const boomed = new Set([r0+'_'+c0]);
   while(queue.length){
-    const [r,c,rad] = queue.shift();
-    boomRing(r,c,rad); snd.bomb(rad); shake(rad>1);
-    for(let dr=-rad;dr<=rad;dr++) for(let dc=-rad;dc<=rad;dc++){
-      const rr=r+dr, cc=c+dc;
-      if(rr<0||rr>=N||cc<0||cc>=N) continue;
+    const [r, c, k, rad] = queue.shift();
+    const cells = [];
+    if(k === 'cross'){
+      lineFlash(r, c); snd.cross(); shake();
+      for(let i=0;i<N;i++){ cells.push([r,i]); cells.push([i,c]); }
+    } else {
+      boomRing(r, c, rad); snd.bomb(rad); shake(rad>1);
+      for(let dr=-rad;dr<=rad;dr++) for(let dc=-rad;dc<=rad;dc++) cells.push([r+dr, c+dc]);
+    }
+    cells.forEach(([rr,cc])=>{
+      if(rr<0||rr>=N||cc<0||cc>=N) return;
       const key = rr+'_'+cc;
-      if(hit.has(key)) continue;
+      if(hit.has(key)) return;
       hit.add(key);
       const t = grid[rr][cc];
-      if(t?.special==='bomb' && !boomed.has(key)){ boomed.add(key); queue.push([rr,cc,1]); }
-    }
+      if(t?.special && (t.special==='bomb'||t.special==='cross') && !boomed.has(key)){
+        boomed.add(key);
+        queue.push([rr, cc, t.special, 1]);
+      }
+    });
   }
 }
+function addBlast(hit, r0, c0, radius){ detonate(hit, r0, c0, 'bomb', radius); }
+function addCrossBlast(hit, r0, c0){ detonate(hit, r0, c0, 'cross'); }
 
 async function activateRainbow(rb, other){
   snd.rainbow();
@@ -935,7 +993,7 @@ async function activateRainbow(rb, other){
     megaBanner('🌈 전체 클리어!');
     flash(); shake(true);
     for(let r=0;r<N;r++) for(let c=0;c<N;c++) hit.add(r+'_'+c);
-  } else if(other.special==='bomb'){
+  } else if(other.special==='bomb' || other.special==='cross'){
     // 🌟+💣 = 동물 두 종류 전멸
     megaBanner('💥 더블 전멸!');
     flash(); shake(true);
@@ -1015,25 +1073,32 @@ async function resolveBoard(fromSwap, swapPos, swapPos2){
     if(chain === 2) banner('연쇄 '+chain+'단!');
     if(chain >= 3){ megaBanner('🔥 연쇄 '+chain+'단!'); flash(); }
     spawns.forEach(sp=>{
-      let spot = sp.cells[Math.floor(sp.cells.length/2)];
-      for(const p of [swapPos, swapPos2]){
-        if(p && sp.cells.some(([r,c])=>r===p[0]&&c===p[1])) { spot = p; break; }
+      let spot = sp.at || sp.cells[Math.floor(sp.cells.length/2)];
+      if(!sp.at){
+        for(const p of [swapPos, swapPos2]){
+          if(p && sp.cells.some(([r,c])=>r===p[0]&&c===p[1])) { spot = p; break; }
+        }
       }
       hit.delete(spot[0]+'_'+spot[1]);
       const old = grid[spot[0]][spot[1]];
       if(old){
         old.el.remove();
-        const emoji = sp.kind==='bomb' ? '💣' : '🌟';
+        const emoji = sp.kind==='bomb' ? '💣' : sp.kind==='cross' ? '⚡' : '🌟';
         const nt = makeTile(emoji, sp.kind);
         grid[spot[0]][spot[1]] = nt;
         place(nt, spot[0], spot[1]);
         snd.special();
-        floatScore(spot[0], spot[1], sp.kind==='bomb'?'폭탄!':'별!');
+        floatScore(spot[0], spot[1], sp.kind==='bomb'?'폭탄!':sp.kind==='cross'?'번개!':'별!');
+        if(sp.kind==='cross' && !window.__crossTip){
+          window.__crossTip = true;
+          setTimeout(()=>toast('⚡ 번개! 아무 블록과 바꾸면 가로+세로 한 줄 싹!'), 500);
+        }
       }
     });
     [...hit].forEach(key=>{
       const [r,c] = key.split('_').map(Number);
       if(grid[r][c]?.special==='bomb') addBlast(hit, r, c);
+      else if(grid[r][c]?.special==='cross') addCrossBlast(hit, r, c);
     });
     await clearCells(hit, chain, 10);
     await dropAndRefill();
@@ -1124,6 +1189,8 @@ async function detonateRemaining(){
     const hit = new Set();
     if(kind === 'bomb'){
       addBlast(hit, found[0], found[1]);
+    } else if(kind === 'cross'){
+      addCrossBlast(hit, found[0], found[1]);
     } else {
       hit.add(found[0]+'_'+found[1]);
       const type = TYPES[Math.random()*TYPES.length|0];
@@ -1418,6 +1485,16 @@ function sparks(r,c){
     s.style.setProperty('--dy',(Math.random()*110-55)+'px');
     fxEl.appendChild(s); setTimeout(()=>s.remove(), 550);
   }
+}
+function lineFlash(r,c){
+  const h = document.createElement('div');
+  h.className = 'line-flash';
+  h.style.cssText = `left:${PAD}px; top:${px(r)}px; width:${N*TS+(N-1)*GAP}px; height:${TS}px;`;
+  const v = document.createElement('div');
+  v.className = 'line-flash vert';
+  v.style.cssText = `left:${px(c)}px; top:${PAD}px; width:${TS}px; height:${N*TS+(N-1)*GAP}px;`;
+  fxEl.appendChild(h); fxEl.appendChild(v);
+  setTimeout(()=>{ h.remove(); v.remove(); }, 450);
 }
 function boomRing(r,c,rad){
   rad = rad || 1;
