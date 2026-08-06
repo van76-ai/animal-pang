@@ -1,0 +1,17 @@
+{
+  "name": "터트리쥬",
+  "short_name": "터트리쥬",
+  "description": "동물 블록을 터뜨리는 무료 매치3 퍼즐! 폭탄·번개·별 조합과 실시간 전국 랭킹전",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ko",
+  "background_color": "#7ec9ff",
+  "theme_color": "#5aa9e6",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

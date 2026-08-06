@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>터트리쥬</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5aa9e6">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --sky1:#7ec9ff; --sky2:#cdefff; --frame:#5aa9e6; --frame-dark:#3d87c4;
@@ -1780,6 +1784,10 @@ updateHeartUI();
 updateCoinUI();
 $('map-music').classList.toggle('off', !musicOn);
 $('gameMusic').classList.toggle('off', !musicOn);
+// PWA 서비스 워커 등록 (앱 설치 자격)
+if('serviceWorker' in navigator){
+  try{ navigator.serviceWorker.register('./sw.js'); }catch(e){}
+}
 })();
 </script>
 </body>
