@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>동물팡팡</title>
+<title>터트리쥬</title>
 <style>
   :root{
     --sky1:#7ec9ff; --sky2:#cdefff; --frame:#5aa9e6; --frame-dark:#3d87c4;
@@ -336,7 +336,7 @@
 <div id="map" class="show">
   <button id="map-mute">🔊</button>
   <button id="map-music">🎵</button>
-  <h1>동물팡팡</h1>
+  <h1>터트리쥬</h1>
   <div class="tagline">🐶🐱🐰🐻🐸🐥</div>
   <div id="heart-panel">
     <div id="hearts-row">❤️❤️❤️❤️❤️</div>
@@ -545,11 +545,11 @@ async function shareForHeart(){
   if(hearts >= MAX_HEARTS){ toast('하트가 이미 가득해요!'); return; }
   if(sharesLeft() <= 0){ toast('오늘 공유 보상은 끝! 내일 또 받을 수 있어요'); return; }
   const url = location.href.split('#')[0];
-  const text = '🐶 동물팡팡 같이 해요! 나 ' + bestStage + '판까지 갔어요. 도전해보실래요?';
+  const text = '🐶 터트리쥬 같이 해요! 나 ' + bestStage + '판까지 갔어요. 도전해보실래요?';
   let shared = false;
   try{
     if(navigator.share){
-      await navigator.share({ title:'동물팡팡', text, url });
+      await navigator.share({ title:'터트리쥬', text, url });
       shared = true;
     } else if(navigator.clipboard){
       await navigator.clipboard.writeText(text + ' ' + url);
